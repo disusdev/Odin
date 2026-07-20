@@ -133,7 +133,15 @@ gb_internal i32 linker_stage(LinkerData *gen) {
 	bool is_cross_linking = false;
 	bool is_android = false;
 
-	if (build_context.cross_compiling && (build_context.different_os || selected_subtarget != Subtarget_Default)) {
+	// NOTE(android): targeting Android always requires the NDK toolchain, even when
+	// `cross_compiling` is false. That flag only reports whether -target differs from
+	// the host's native metrics, so building -target:linux_arm64 on an aarch64 Linux
+	// host looks native and is not: the target's libc is bionic, not the host's. Left
+	// gated on it, the link silently used the host toolchain and produced a library
+	// that loads nowhere — `dlopen failed: library "libm.so.6" not found`, at launch,
+	// from an APK that built and installed cleanly.
+	if ((build_context.cross_compiling || selected_subtarget == Subtarget_Android)
+	 && (build_context.different_os || selected_subtarget != Subtarget_Default)) {
 		switch (selected_subtarget) {
 		case Subtarget_Android:
 			is_cross_linking = true;
